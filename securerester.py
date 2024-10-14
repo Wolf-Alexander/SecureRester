@@ -27,9 +27,7 @@ def get_master_password():
     master_pwd = input("Enter your master password for this session: ")
     return master_pwd
 
-def add(master_pwd):
-    name = input("Name: ")
-    pwd = input("Password: ")
+def add(master_pwd, name, pwd):
     salt = b'\x00' * 16 
     kdf = PBKDF2HMAC(
         algorithm=hashes.SHA256(),
@@ -43,10 +41,8 @@ def add(master_pwd):
         f.write(name + "|" + fer.encrypt(pwd.encode('utf-8')).decode('utf-8') + "\n")
 
 def view(master_pwd):
-    with open("Password.txt", "a") as f:
-        if os.stat("Password.txt").st_size == 0:  
-            print("Password file is empty")
-            return
+    passwords = []  # Initialize an empty list
+    try:
         with open("Password.txt", "r", encoding="utf-8") as f:
             for line in f.readlines():
                 data = line.rstrip('\r\n')
@@ -58,11 +54,15 @@ def view(master_pwd):
                     derived_key = base64.urlsafe_b64encode(kdf.derive(master_pwd.encode() + load_key()))
                     fer = Fernet(derived_key)
                     try:
-                        print("Name:", name, ", Password:", fer.decrypt(passw.encode('utf-8')).decode('utf-8'))
+                        decrypted_pwd = fer.decrypt(passw.encode('utf-8')).decode('utf-8')
+                        passwords.append((name, decrypted_pwd))  # Add to the list
                     except InvalidToken:
                         print("Name: (Encrypted) , Password: (Encrypted)")
                 else:
                     continue 
+    except FileNotFoundError:
+        print("Password file not found!")
+    return passwords  # Return the passwords list
                 
 if __name__ == "__main__":
     create_key()  # Check for and create key.key if necessary
